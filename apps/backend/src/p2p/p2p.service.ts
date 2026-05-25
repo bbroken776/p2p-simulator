@@ -27,7 +27,7 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
   private gossipRounds = 0;
   private snapshotInterval!: NodeJS.Timeout;
   private messageFlowBuffer: P2PMessage[] = [];
-  
+
   private messagesThisTick = 0;
   private lastMessagesPerSecond = 0;
 
@@ -113,7 +113,7 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
     const node = this.nodes.get(nodeId);
     if (!node) throw new Error(`Node ${nodeId} not found`);
     node.stop();
-    
+
     this.nodes.forEach((n) => n.removePeer(nodeId));
     this.nodes.delete(nodeId);
 
@@ -146,6 +146,18 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
     responsible.forEach((nodeId) => {
       const node = this.nodes.get(nodeId);
       if (node) {
+        if (node.status === 'attacker') {
+          this.emitEvent({
+            id: uuidv4(),
+            type: 'ATTACK_HIT',
+            timestamp: Date.now(),
+            message: `Publish dropped! Attacker node ${node.id.substring(0, 6)} refused to store chunk of "${fileName}"`,
+            payload: { fromNodeId: origin, targetId: node.id },
+            severity: 'danger',
+          });
+          return;
+        }
+
         node.files.push(fileId);
         this.bus.send({
           id: uuidv4(),
@@ -155,7 +167,7 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
           payload: { fileId, fileName },
           timestamp: Date.now(),
         });
-        
+
         this.emitEvent({
           id: uuidv4(),
           type: 'CHUNK_STORED',
@@ -214,9 +226,20 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
       visited.add(current.id);
       hops++;
 
+      if (current.status === 'attacker') {
+        this.emitEvent({
+          id: uuidv4(),
+          type: 'ATTACK_HIT',
+          timestamp: Date.now(),
+          message: `Lookup dropped! Attacker node ${current.id.substring(0, 6)} refused to forward request for file`,
+          payload: { fromNodeId: current.id, targetId: current.id },
+          severity: 'danger',
+        });
+        break;
+      }
+
       if (current.files.includes(fileId)) {
         this.successfulLookups++;
-        this.totalHops += hops;
 
         this.emitEvent({
           id: uuidv4(),
@@ -226,6 +249,7 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
           payload: { fileId, foundAt: current.id, hops },
           severity: 'success',
         });
+        this.totalHops += hops;
         return true;
       }
 
@@ -257,6 +281,7 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
       severity: 'danger',
     });
 
+    this.totalHops += hops;
     return false;
   }
 
@@ -276,7 +301,7 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
       for (let i = 0; i < count; i++) {
         const attacker = this.spawnNode(true);
         attackerIds.push(attacker.id);
-        
+
         attacker.peers.forEach((peerId) => {
           this.emitEvent({
             id: uuidv4(),
@@ -348,7 +373,7 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
       averageHops:
         this.totalLookups === 0
           ? 0
-          : Math.round(this.totalHops / Math.max(1, this.successfulLookups)),
+          : Math.round(this.totalHops / this.totalLookups),
       churnRate:
         allNodes.length === 0
           ? 0
@@ -359,7 +384,6 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
   }
 
   public getEvents(limit = 100): NetworkEvent[] {
-    
     return this.events.slice(-limit).reverse();
   }
 
