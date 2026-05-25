@@ -22,8 +22,6 @@ export interface P2PNode {
   joinedAt: number;
 }
 
-
-
 export type MessageType =
   | 'GOSSIP'
   | 'FIND_NODE'
@@ -41,8 +39,6 @@ export interface P2PMessage {
   payload?: unknown;
   timestamp: number;
 }
-
-
 
 export interface FileChunk {
   chunkId: string;
@@ -62,8 +58,6 @@ export interface FileManifest {
   publishedBy: string;
   publishedAt: number;
 }
-
-
 
 export type NetworkEventType =
   | 'NODE_JOINED'
@@ -90,8 +84,6 @@ export interface NetworkEvent {
   severity: EventSeverity;
 }
 
-
-
 export interface NetworkSnapshot {
   nodes: P2PNode[];
   edges: [string, string][];
@@ -110,8 +102,6 @@ export interface NetworkMetrics {
   filesInNetwork: number;
 }
 
-
-
 export type AttackType = 'SYBIL' | 'ECLIPSE';
 
 export interface AttackConfig {
@@ -120,8 +110,6 @@ export interface AttackConfig {
   sybilCount?: number;
   targetFileId?: string;
 }
-
-
 
 export interface AddNodePayload {
   count?: number;
@@ -148,8 +136,6 @@ export interface SendMessagePayload {
 export interface KillNodePayload {
   nodeId: string;
 }
-
-
 
 export const WS_EVENTS = {
   NETWORK_SNAPSHOT: 'network:snapshot',

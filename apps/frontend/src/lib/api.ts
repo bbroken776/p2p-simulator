@@ -26,7 +26,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(`[${res.status}] ${detail}`);
   }
 
-  
   const text = await res.text();
   if (!text) return {} as T;
 
@@ -51,7 +50,6 @@ export const api = {
 
   killNode: (id: string) => request<any>(`/nodes/${id}`, { method: 'DELETE' }),
 
-  
   publishFile: (fileName: string, data: string, fromNodeId?: string) => {
     
     let encoded: string;

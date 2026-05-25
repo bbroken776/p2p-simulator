@@ -112,8 +112,7 @@ export function EventLog() {
 
   const ROW_HEIGHT = 45;
   const containerHeight = containerRef.current?.clientHeight || 500;
-  
-  
+
   const overscan = 4;
   const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - overscan);
   const visibleCount = Math.ceil(containerHeight / ROW_HEIGHT) + overscan * 2;

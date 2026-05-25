@@ -15,8 +15,6 @@ import { useNetworkStore } from '../../store/network.store';
 import { P2PNode, NetworkEvent } from '@p2p-simulator/shared';
 import { api } from '../../lib/api';
 
-
-
 const NODE_CONFIG: Record<
   string,
   { color: string; emissive: string; glow: string }
@@ -38,13 +36,9 @@ const PARTICLE_CONFIG = {
 
 const GLOW_DURATION = 2000;
 
-
-
 const _sv = new THREE.Vector3();
 const _col = new THREE.Color();
 const _col2 = new THREE.Color();
-
-
 
 interface GlowEntry {
   color: string;
@@ -60,16 +54,13 @@ function triggerGlow(id: string, color: string, intensity = 1) {
   });
 }
 
-
-
-
 interface HopParticle {
   id: string;
   fromId: string;
   toId: string;
   type: keyof typeof PARTICLE_CONFIG;
-  born: number; 
-  ttl: number; 
+  born: number;
+  ttl: number;
 }
 const hopQueue: HopParticle[] = [];
 let hopCounter = 0;
@@ -88,11 +79,9 @@ function pushHop(
     born: Date.now(),
     ttl,
   });
-  
+
   if (hopQueue.length > 80) hopQueue.splice(0, hopQueue.length - 80);
 }
-
-
 
 function reactToEvent(event: NetworkEvent, nodes: P2PNode[]) {
   const p = (event.payload ?? {}) as Record<string, any>;
@@ -100,11 +89,10 @@ function reactToEvent(event: NetworkEvent, nodes: P2PNode[]) {
 
   switch (event.type) {
     case 'GOSSIP_ROUND': {
-      
       const node = nodeMap.get(p.nodeId);
       if (!node) break;
       triggerGlow(p.nodeId, '#34d399', 0.8);
-      
+
       node.peers.slice(0, 3).forEach((peerId, i) => {
         setTimeout(() => {
           pushHop(p.nodeId, peerId, 'GOSSIP');
@@ -115,7 +103,6 @@ function reactToEvent(event: NetworkEvent, nodes: P2PNode[]) {
     }
 
     case 'FILE_PUBLISHED': {
-      
       triggerGlow(p.nodeId, '#a78bfa', 1.5);
       const node = nodeMap.get(p.nodeId);
       node?.peers.slice(0, 5).forEach((peerId, i) => {
@@ -125,20 +112,17 @@ function reactToEvent(event: NetworkEvent, nodes: P2PNode[]) {
     }
 
     case 'CHUNK_STORED': {
-      
       if (p.fromNodeId && p.nodeId) pushHop(p.fromNodeId, p.nodeId, 'FILE');
       triggerGlow(p.nodeId, '#a78bfa', 1.0);
       break;
     }
 
     case 'LOOKUP_STARTED': {
-      
       triggerGlow(p.nodeId, '#fbbf24', 1.2);
       break;
     }
 
     case 'LOOKUP_HOP': {
-      
       if (p.fromNodeId && p.toNodeId) {
         pushHop(p.fromNodeId, p.toNodeId, 'LOOKUP');
         triggerGlow(p.fromNodeId, '#fbbf24', 0.7);
@@ -148,31 +132,26 @@ function reactToEvent(event: NetworkEvent, nodes: P2PNode[]) {
     }
 
     case 'LOOKUP_SUCCESS': {
-      
       triggerGlow(p.nodeId, '#34d399', 2.5);
       break;
     }
 
     case 'LOOKUP_FAILED': {
-      
       triggerGlow(p.nodeId, '#ef4444', 2.0);
       break;
     }
 
     case 'NODE_JOINED': {
-      
       triggerGlow(p.nodeId, '#818cf8', 2.5);
       break;
     }
 
     case 'NODE_LEFT': {
-      
       triggerGlow(p.nodeId, '#475569', 1.5);
       break;
     }
 
     case 'ATTACK_STARTED': {
-      
       const ids: string[] = p.attackerIds ?? [];
       ids.forEach((id, i) => {
         setTimeout(() => {
@@ -188,7 +167,6 @@ function reactToEvent(event: NetworkEvent, nodes: P2PNode[]) {
     }
 
     case 'ATTACK_HIT': {
-      
       if (p.fromNodeId && p.targetId) {
         pushHop(p.fromNodeId, p.targetId, 'ATTACK');
         triggerGlow(p.fromNodeId, '#f43f5e', 1.5);
@@ -198,8 +176,6 @@ function reactToEvent(event: NetworkEvent, nodes: P2PNode[]) {
     }
   }
 }
-
-
 
 function EventWatcher() {
   const lastSeenId = useRef('');
@@ -221,9 +197,6 @@ function EventWatcher() {
   return null;
 }
 
-// ─── ConnectionTube (peer edge) ───────────────────────────────────────────────
-// Brightness scales with shared files between nodes — busier edges glow more
-
 const ConnectionTube = memo(function ConnectionTube({
   start,
   end,
@@ -233,11 +206,11 @@ const ConnectionTube = memo(function ConnectionTube({
   start: THREE.Vector3;
   end: THREE.Vector3;
   color: string;
-  weight: number; // 0–1
+  weight: number;
 }) {
   const lineObject = useMemo(() => {
     const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
-    // Slight arc perpendicular to XZ plane
+
     const perp = new THREE.Vector3(-(end.z - start.z), 0, end.x - start.x)
       .normalize()
       .multiplyScalar(4 + weight * 6);
@@ -254,7 +227,7 @@ const ConnectionTube = memo(function ConnectionTube({
 
   useFrame(({ clock }) => {
     const mat = lineObject.material as THREE.LineBasicMaterial;
-    // Edges breathe slightly — alive feel
+
     mat.opacity =
       (0.12 + weight * 0.28) *
       (0.8 + Math.sin(clock.elapsedTime * 1.2 + weight * 10) * 0.2);
@@ -263,17 +236,7 @@ const ConnectionTube = memo(function ConnectionTube({
   return <primitive object={lineObject} />;
 });
 
-// ─── LiveHopParticles ─────────────────────────────────────────────────────────
-// Each hop is a Star-Wars-style laser bolt: a short bright streak that zips
-// from fromId to toId in a straight line, then vanishes.
-//
-// Design:
-//  - Pool of 80 THREE.Line objects, each with STREAK_POINTS vertices
-//  - Stable hopId → slot mapping via a Map so queue splices never misalign
-//  - Zero per-frame allocations: all Vector3 ops use pre-allocated scalars
-//  - Linear motion (not eased) — bolts don't decelerate, they zip
-
-const STREAK_POINTS = 10; 
+const STREAK_POINTS = 10;
 const POOL_SIZE = 80;
 
 function LiveHopParticles({ posMap }: { posMap: Map<string, THREE.Vector3> }) {
@@ -312,7 +275,6 @@ function LiveHopParticles({ posMap }: { posMap: Map<string, THREE.Vector3> }) {
     const now = Date.now();
     const t = clock.elapsedTime;
 
-    
     for (let i = hopQueue.length - 1; i >= 0; i--) {
       const hop = hopQueue[i];
       if (now - hop.born > hop.ttl) {
@@ -327,7 +289,6 @@ function LiveHopParticles({ posMap }: { posMap: Map<string, THREE.Vector3> }) {
       }
     }
 
-    
     for (let i = 0; i < hopQueue.length; i++) {
       const hop = hopQueue[i];
       if (!hopToSlot.current.has(hop.id) && freeSlots.current.length > 0) {
@@ -335,7 +296,6 @@ function LiveHopParticles({ posMap }: { posMap: Map<string, THREE.Vector3> }) {
       }
     }
 
-    
     for (let i = 0; i < hopQueue.length; i++) {
       const hop = hopQueue[i];
       const slot = hopToSlot.current.get(hop.id);
@@ -350,13 +310,9 @@ function LiveHopParticles({ posMap }: { posMap: Map<string, THREE.Vector3> }) {
         continue;
       }
 
-      
-      
-      
       const floatA = Math.sin(t * 0.7 + baseA.x * 0.5) * 1.4;
       const floatB = Math.sin(t * 0.7 + baseB.x * 0.5) * 1.4;
 
-      
       const ax = baseA.x,
         ay = baseA.y + floatA,
         az = baseA.z;
@@ -364,29 +320,25 @@ function LiveHopParticles({ posMap }: { posMap: Map<string, THREE.Vector3> }) {
         by = baseB.y + floatB,
         bz = baseB.z;
 
-      
       const progress = Math.min((now - hop.born) / hop.ttl, 1);
       const cfg = PARTICLE_CONFIG[hop.type];
 
-      
       const BOLT_LEN = 0.18;
       const headT = progress;
       const tailT = Math.max(0, progress - BOLT_LEN);
 
-      
       const attr = line.geometry.attributes.position as THREE.BufferAttribute;
       const dx = bx - ax,
         dy = by - ay,
         dz = bz - az;
 
       for (let p = 0; p < STREAK_POINTS; p++) {
-        const frac = p / (STREAK_POINTS - 1); 
+        const frac = p / (STREAK_POINTS - 1);
         const tPt = tailT + frac * (headT - tailT);
         attr.setXYZ(p, ax + dx * tPt, ay + dy * tPt, az + dz * tPt);
       }
       attr.needsUpdate = true;
 
-      
       const fadeIn = Math.min(progress / 0.06, 1);
       const fadeOut = Math.min((1 - progress) / 0.15, 1);
       mat.opacity = fadeIn * fadeOut * 0.97;
@@ -398,8 +350,6 @@ function LiveHopParticles({ posMap }: { posMap: Map<string, THREE.Vector3> }) {
   return <group ref={groupRef} />;
 }
 
-
-
 const NetworkNode = memo(function NetworkNode({
   node,
   isSelected,
@@ -408,7 +358,7 @@ const NetworkNode = memo(function NetworkNode({
 }: {
   node: P2PNode;
   isSelected: boolean;
-  peerCount: number; 
+  peerCount: number;
   onClick: () => void;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
@@ -421,7 +371,6 @@ const NetworkNode = memo(function NetworkNode({
   const isAlive = node.status !== 'churned';
   const isIdle = node.status === 'idle';
 
-  
   const baseRadius = useMemo(() => {
     const base = node.status === 'attacker' ? 3.2 : 2.2;
     const peerBonus = Math.min(peerCount / 20, 1) * 1.2;
@@ -451,7 +400,6 @@ const NetworkNode = memo(function NetworkNode({
     const glowing = !!entry && entry.expiresAt > now;
     const glowFrac = glowing ? (entry!.expiresAt - now) / GLOW_DURATION : 0;
 
-    
     const floatAmp = isIdle ? 0.5 : isAlive ? 1.4 : 0;
     const floatSpeed = isIdle ? 0.35 : 0.7;
     const floatY = Math.sin(t * floatSpeed + pos.x * 0.5) * floatAmp;
@@ -459,13 +407,11 @@ const NetworkNode = memo(function NetworkNode({
     if (meshRef.current) {
       meshRef.current.position.y = floatY;
 
-      
       const spinMult = node.status === 'attacker' ? 3 : isIdle ? 0.3 : 1;
       meshRef.current.rotation.x += 0.003 * spinMult;
       meshRef.current.rotation.y += 0.005 * spinMult;
       meshRef.current.rotation.z += 0.002 * spinMult;
 
-      
       const idleDecay = isIdle ? 0.85 : 1;
       const churnDecay = node.status === 'churned' ? 0.3 : 1;
       const targetS =
@@ -558,7 +504,6 @@ const NetworkNode = memo(function NetworkNode({
 
   return (
     <group position={[pos.x, pos.y, pos.z]}>
-      {}
       <mesh ref={glowRef}>
         <sphereGeometry args={[baseRadius * 2.2, 12, 12]} />
         <meshBasicMaterial
@@ -569,7 +514,6 @@ const NetworkNode = memo(function NetworkNode({
         />
       </mesh>
 
-      {}
       {isAlive && (
         <>
           <mesh ref={ring1Ref}>
@@ -604,7 +548,6 @@ const NetworkNode = memo(function NetworkNode({
         </>
       )}
 
-      {}
       <mesh
         ref={meshRef}
         onClick={handleClick}
@@ -625,7 +568,6 @@ const NetworkNode = memo(function NetworkNode({
         />
       </mesh>
 
-      {}
       <Html position={[0, -(baseRadius + 2.8), 0]} center zIndexRange={[0, 10]}>
         <div
           style={{
@@ -652,7 +594,6 @@ const NetworkNode = memo(function NetworkNode({
         </div>
       </Html>
 
-      {}
       {showHud && (
         <Html position={[baseRadius + 4, baseRadius, 0]} zIndexRange={[10, 20]}>
           <div
@@ -795,8 +736,6 @@ const NetworkNode = memo(function NetworkNode({
   );
 });
 
-
-
 function Scene() {
   const snapshot = useNetworkStore((s) => s.snapshot);
   const selectedNode = useNetworkStore((s) => s.selectedNode);
@@ -813,7 +752,7 @@ function Scene() {
 
   const posMap = useMemo(() => {
     const m = new Map<string, THREE.Vector3>();
-    
+
     nodes.forEach((n) =>
       m.set(
         n.id,
@@ -837,7 +776,6 @@ function Scene() {
     });
   }, [edges]);
 
-  
   const edgeWeights = useMemo(() => {
     const w = new Map<string, number>();
     dedupedEdges.forEach(([a, b]) => {
@@ -855,9 +793,8 @@ function Scene() {
     return w;
   }, [dedupedEdges, nodeMap]);
 
-  
   const visibleEdges = useMemo(() => {
-    return dedupedEdges.slice(0, 120); 
+    return dedupedEdges.slice(0, 120);
   }, [dedupedEdges]);
 
   const visibleTubes = useMemo(() => {
@@ -900,7 +837,6 @@ function Scene() {
 
       <EventWatcher />
 
-      {}
       {visibleEdges.map(([a, b]) => {
         const posA = posMap.get(a);
         const posB = posMap.get(b);
@@ -931,10 +867,8 @@ function Scene() {
         );
       })}
 
-      {}
       <LiveHopParticles posMap={posMap} />
 
-      {}
       {nodes.map((node) => (
         <NetworkNode
           key={node.id}
@@ -960,8 +894,6 @@ function Scene() {
     </>
   );
 }
-
-
 
 function NodeDetailPanel() {
   const node = useNetworkStore((s) => s.selectedNode);
@@ -1143,7 +1075,6 @@ function NodeDetailPanel() {
           ))}
         </div>
 
-        {}
         <div>
           <div
             style={{
@@ -1280,8 +1211,6 @@ function NodeDetailPanel() {
   );
 }
 
-
-
 function Legend() {
   const entries = [
     { color: '#34d399', label: 'Gossip ripple' },
@@ -1362,8 +1291,6 @@ function Legend() {
     </div>
   );
 }
-
-
 
 export function NetworkMap3D() {
   return (

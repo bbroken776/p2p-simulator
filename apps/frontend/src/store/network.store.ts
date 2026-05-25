@@ -22,10 +22,8 @@ interface NetworkStore {
 
 let _socketInitialized = false;
 
-
 let snapshotTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingSnapshot: NetworkSnapshot | null = null;
-
 
 let eventQueue: NetworkEvent[] = [];
 let eventTimer: ReturnType<typeof setTimeout> | null = null;
@@ -54,7 +52,6 @@ export const useNetworkStore = create<NetworkStore>()(
       socket.on('disconnect', () => set({ isConnected: false }));
       socket.on('connect_error', () => set({ isConnected: false }));
 
-      
       socket.on(WS_EVENTS.NETWORK_SNAPSHOT, (data: NetworkSnapshot) => {
         pendingSnapshot = data;
         if (!snapshotTimer) {
@@ -66,7 +63,6 @@ export const useNetworkStore = create<NetworkStore>()(
         }
       });
 
-      
       socket.on(WS_EVENTS.NETWORK_EVENT, (event: NetworkEvent) => {
         eventQueue.push(event);
         if (!eventTimer) {

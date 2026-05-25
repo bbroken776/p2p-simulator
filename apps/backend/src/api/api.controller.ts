@@ -21,8 +21,6 @@ import type {
 export class ApiController {
   constructor(private readonly p2pService: P2PService) {}
 
-  
-
   @Get('snapshot')
   getSnapshot() {
     return this.p2pService.getSnapshot();
@@ -37,8 +35,6 @@ export class ApiController {
   getEvents(@Query('limit') limit?: string) {
     return this.p2pService.getEvents(limit ? parseInt(limit) : 100);
   }
-
-  
 
   @Post('nodes')
   addNode(@Body() body: AddNodePayload) {
@@ -60,8 +56,6 @@ export class ApiController {
     }
   }
 
-  
-
   @Get('files')
   getFiles() {
     return this.p2pService.getAllFiles();
@@ -82,8 +76,6 @@ export class ApiController {
     const success = this.p2pService.lookupFile(body.fileId, body.fromNodeId);
     return { success, fileId: body.fileId };
   }
-
-  
 
   @Post('attacks')
   launchAttack(@Body() body: AttackConfig) {

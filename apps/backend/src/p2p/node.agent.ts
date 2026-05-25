@@ -36,8 +36,6 @@ export class NodeAgent extends EventEmitter {
     this.initKBuckets();
   }
 
-  
-
   private initKBuckets(): void {
     for (let i = 0; i < 8; i++) {
       this.kBuckets.push({
@@ -47,8 +45,6 @@ export class NodeAgent extends EventEmitter {
       });
     }
   }
-
-  
 
   public xorDistance(a: string, b: string): number {
     const aVal = parseInt(a.substring(0, 8), 16);
@@ -64,8 +60,6 @@ export class NodeAgent extends EventEmitter {
       .slice(0, k);
   }
 
-  
-
   public addPeer(peerId: string): void {
     if (peerId === this.id || this.peers.includes(peerId)) return;
     this.peers.push(peerId);
@@ -79,7 +73,6 @@ export class NodeAgent extends EventEmitter {
       if (bucket.peers.length > 4) bucket.peers.shift();
     }
 
-    
     if (this.status === 'idle') this.status = 'active';
   }
 
@@ -89,8 +82,6 @@ export class NodeAgent extends EventEmitter {
       bucket.peers = bucket.peers.filter((p) => p !== peerId);
     });
   }
-
-  
 
   public start(): void {
     this.gossipInterval = setInterval(
@@ -116,7 +107,6 @@ export class NodeAgent extends EventEmitter {
     const allNodes = this.getAllNodeIds().filter((n) => n !== this.id);
     if (allNodes.length === 0) return;
 
-    
     if (
       this.status === 'active' &&
       this.gossipRound > 5 &&
@@ -125,7 +115,6 @@ export class NodeAgent extends EventEmitter {
       this.status = 'idle';
     }
 
-    
     if (this.peers.length < this.fanout) {
       const unknown = allNodes.filter((n) => !this.peers.includes(n));
       const toAdd = unknown
@@ -134,7 +123,6 @@ export class NodeAgent extends EventEmitter {
       toAdd.forEach((p) => this.addPeer(p));
     }
 
-    
     const targets = [...this.peers]
       .sort(() => Math.random() - 0.5)
       .slice(0, this.fanout);
@@ -168,8 +156,6 @@ export class NodeAgent extends EventEmitter {
     this.messageCount++;
     this.sendMessage(msg);
   }
-
-  
 
   public receiveMessage(msg: P2PMessage): void {
     if (this.status === 'churned') return;
@@ -214,8 +200,6 @@ export class NodeAgent extends EventEmitter {
         this.emit('received', msg);
     }
   }
-
-  
 
   public toSnapshot(): P2PNode {
     return {

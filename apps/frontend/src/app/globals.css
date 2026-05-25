@@ -13,7 +13,6 @@ body {
   min-height: 100vh;
 }
 
-/* Fixed deep background — glass effect only works against this */
 body::before {
   content: '';
   position: fixed;

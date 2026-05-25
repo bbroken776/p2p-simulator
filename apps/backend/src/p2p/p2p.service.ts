@@ -37,7 +37,6 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
     const initialCount = parseInt(process.env.INITIAL_NODE_COUNT || '12');
     for (let i = 0; i < initialCount; i++) this.spawnNode();
 
-    
     this.bus.onMessage((msg) => {
       this.totalMessages++;
       this.messagesThisTick++;
@@ -46,7 +45,6 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
       if (target) target.receiveMessage(msg);
     });
 
-    
     this.snapshotInterval = setInterval(() => {
       this.lastMessagesPerSecond = this.messagesThisTick;
       this.messagesThisTick = 0;
@@ -59,8 +57,6 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
     clearInterval(this.snapshotInterval);
     this.nodes.forEach((n) => n.stop());
   }
-
-  
 
   public spawnNode(isAttacker = false): NodeAgent {
     const id = uuidv4().replace(/-/g, '').substring(0, 16);
@@ -81,7 +77,6 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
 
     if (isAttacker) agent.status = 'attacker';
 
-    
     const existing = Array.from(this.nodes.keys())
       .sort(() => Math.random() - 0.5)
       .slice(0, 3);
@@ -132,8 +127,6 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  
-
   public publishFile(
     fileName: string,
     data: string,
@@ -145,7 +138,6 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
       fromNodeId || nodeIds[Math.floor(Math.random() * nodeIds.length)];
     const replicationFactor = parseInt(process.env.REPLICATION_FACTOR || '3');
 
-    
     const originNode = this.nodes.get(origin);
     const responsible = originNode
       ? originNode.closestPeers(fileId, replicationFactor)
@@ -268,8 +260,6 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
     return false;
   }
 
-  
-
   public launchAttack(config: AttackConfig): void {
     this.emitEvent({
       id: uuidv4(),
@@ -304,7 +294,6 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
       const target = this.nodes.get(config.targetNodeId);
       if (!target) return;
 
-      
       for (let i = 0; i < 6; i++) {
         const attacker = this.spawnNode(true);
         target.addPeer(attacker.id);
@@ -322,8 +311,6 @@ export class P2PService implements OnModuleInit, OnModuleDestroy {
       }
     }
   }
-
-  
 
   public getSnapshot(): NetworkSnapshot {
     const nodes = Array.from(this.nodes.values()).map((n) => n.toSnapshot());
