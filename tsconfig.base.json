@@ -1,21 +1,21 @@
 {
+  "compileOnSave": false,
   "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": true,
     "composite": true,
-    "declarationMap": true,
-    "emitDeclarationOnly": true,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
     "importHelpers": true,
-    "isolatedModules": true,
-    "lib": ["es2022"],
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "noEmitOnError": true,
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitOverride": true,
-    "noImplicitReturns": true,
-    "noUnusedLocals": true,
-    "skipLibCheck": true,
+    "target": "ES2017",
+    "lib": ["ES2020", "dom"],
     "strict": true,
-    "target": "es2022",
-    "customConditions": ["@org/source"]
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@p2p-simulator/shared": ["libs/shared/src/index.ts"]
+    }
   }
 }
